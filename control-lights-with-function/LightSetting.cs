@@ -2,17 +2,13 @@ using Newtonsoft.Json;
 
 namespace MadeByGPS.Function
 {
-    public class Jsoncall {
-        public int sat { get; set; }
-        public int bri { get; set; }
+    public class LightSetting {
+
         public int hue { get; set; }
 
         public string make_call (string color) {
 
-            this.sat = 255;
-            this.bri = 100;
             this.hue = get_color (color);
-            
 
             string json = JsonConvert.SerializeObject (this, Formatting.Indented);
 

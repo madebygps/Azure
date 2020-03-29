@@ -10,33 +10,33 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace MadeByGPS.Function
-{
+// https://blog.vjirovsky.cz/azure-functions-and-forbidden-socket-exception/
+
+namespace MadeByGPS.Function {
     public static class Lights {
+
+        public static HttpClient client = new HttpClient();
+        public static HttpClientHandler clientHandler = new HttpClientHandler ();
         [FunctionName ("Lights")]
         public static async Task<IActionResult> Run (
             [HttpTrigger (AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log) {
 
-// docs https://developers.meethue.com/develop/get-started-2/
-                
+            // docs https://developers.meethue.com/develop/get-started-2/
+
             log.LogInformation ("C# HTTP trigger function processed a request.");
-            // Bridge IP = 192.168.1.124
-            // username = sUQTmsDzmAJbqsbI3ZXbRp1W6AKPb8BTslQJfdLj
-            // url https://192.168.1.124/api/sUQTmsDzmAJbqsbI3ZXbRp1W6AKPb8BTslQJfdLj/groups/1/action
-            /*
-                device 
-                {"devicetype":"my_hue_app#iphone gps"}
+        
 
-                to change all lights 
-                
-            */
+            string bridge_ip = System.Environment.GetEnvironmentVariable("bridge_ip");
+            string bridge_username = System.Environment.GetEnvironmentVariable("bridge_username");
+            string url = ($"https://{bridge_ip}/api/{bridge_username}/groups/1/action");
 
-            HttpClientHandler clientHandler = new HttpClientHandler();
-clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
 
-// Pass the handler to httpclient(from you are calling api)
-HttpClient client = new HttpClient(clientHandler);
+            
+            clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
+        
+
+            client = new HttpClient (clientHandler);
 
             string color = req.Query["color"];
 
@@ -44,17 +44,15 @@ HttpClient client = new HttpClient(clientHandler);
             dynamic data = JsonConvert.DeserializeObject (requestBody);
             color = color ?? data?.color;
 
-            Jsoncall jsoncall = new Jsoncall ();
-            string json = jsoncall.make_call (color);
+            LightSetting lightSetting = new LightSetting ();
+            string json = lightSetting.make_call (color);
 
-            //var response = await client.PostAsync("https://192.168.1.124/api/sUQTmsDzmAJbqsbI3ZXbRp1W6AKPb8BTslQJfdLj/groups/1/action", json);
-            var response = await client.PutAsync("https://192.168.1.124/api/sUQTmsDzmAJbqsbI3ZXbRp1W6AKPb8BTslQJfdLj/groups/1/action", new StringContent(json, Encoding.UTF8, "application/json"));
-            string responseContent = "";
-            if (response.Content != null) {
-         responseContent = await response.Content.ReadAsStringAsync();
+            
+            var response = await client.PutAsync (url, new StringContent (json, Encoding.UTF8, "application/json"));
 
-        // From here on you could deserialize the ResponseContent back again to a concrete C# type using Json.Net
-    }
+            client.Dispose();
+            clientHandler.Dispose();
+            
 
             string responseMessage = string.IsNullOrEmpty (json) ?
                 "This HTTP triggered function executed successfully. Pass a color to change the lights!." :
@@ -62,5 +60,9 @@ HttpClient client = new HttpClient(clientHandler);
 
             return new OkObjectResult (responseMessage);
         }
+
+    
+    
     }
 }
+
